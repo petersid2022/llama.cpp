@@ -309,6 +309,7 @@ struct common_params_speculative {
 
     // ngram-based speculative decoding
 
+    uint16_t ngram_n_draft  =  8; // ngram n tokens to draft
     uint16_t ngram_size_n   = 12; // ngram size for lookup
     uint16_t ngram_size_m   = 48; // mgram size for speculative tokens
     uint16_t ngram_min_hits = 1; // minimum hits at ngram/mgram lookup for mgram to be proposed
@@ -317,6 +318,9 @@ struct common_params_speculative {
 
     std::string lookup_cache_static;  // path of static ngram cache file for lookup decoding           // NOLINT
     std::string lookup_cache_dynamic; // path of dynamic ngram cache file for lookup decoding          // NOLINT
+
+    bool save_lookup_cache_static  = false; // whether or not we should save the static ngram cache file     // NOLINT
+    bool save_lookup_cache_dynamic = false; // whether or not we should save the dynamic ngram cache file    // NOLINT
 
     // draft-model speculative decoding
 

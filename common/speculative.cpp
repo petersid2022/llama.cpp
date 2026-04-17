@@ -771,6 +771,9 @@ struct common_speculative_state_ngram_cache : public common_speculative_state {
     bool save_dynamic;
     bool save_static;
 
+    const std::string path_static;
+    const std::string path_dynamic;
+
     common_ngram_cache ngram_cache_context;
     common_ngram_cache ngram_cache_dynamic;
     common_ngram_cache ngram_cache_static;
@@ -779,15 +782,17 @@ struct common_speculative_state_ngram_cache : public common_speculative_state {
 
     common_speculative_state_ngram_cache(
             const enum common_speculative_type type,
+            uint16_t            n_draft,
             const std::string & path_static,
             const std::string & path_dynamic,
-            uint16_t            n_draft,
             bool                save_dynamic,
             bool                save_static)
         : common_speculative_state(type)
         , n_draft(n_draft)
         , save_dynamic(save_dynamic)
         , save_static(save_static)
+        , path_static(path_static)
+        , path_dynamic(path_dynamic)
     {
         if (!path_static.empty()) {
             try {
@@ -805,6 +810,15 @@ struct common_speculative_state_ngram_cache : public common_speculative_state {
                 LOG_ERR("failed to open dynamic lookup cache: %s", path_dynamic.c_str());
                 GGML_ABORT("Couldn't read dynamic lookup cache");
             }
+        }
+    }
+
+    ~common_speculative_state_ngram_cache() override {
+        if (save_static) {
+            common_ngram_cache_save(ngram_cache_static, path_static);
+        }
+        if (save_dynamic) {
+            common_ngram_cache_save(ngram_cache_dynamic, path_dynamic);
         }
     }
 
@@ -874,16 +888,15 @@ static common_ngram_map get_common_ngram_map(const common_speculative_config & c
     return common_ngram_map(size_key, size_value, key_only, min_hits);
 }
 
-static common_speculative_state_ngram_cache create_state_ngram_cache(
-        const std::string & path_static, const std::string & path_dynamic,
-        const common_speculative_config & config) {
-    uint16_t n_draft = 8; // TODO get from config?
+static common_speculative_state_ngram_cache create_state_ngram_cache(const common_speculative_config & config) {
 
-    // TODO bool param in common/common.h to set save_static/save_dynamic?
-    bool save_static = false;
-    bool save_dynamic = false;
-
-    common_speculative_state_ngram_cache state(config.type, path_static, path_dynamic, n_draft, save_static, save_dynamic);
+    common_speculative_state_ngram_cache state(
+            config.type,
+            config.params.ngram_n_draft,
+            config.params.lookup_cache_static,
+            config.params.lookup_cache_dynamic,
+            config.params.save_lookup_cache_static,
+            config.params.save_lookup_cache_dynamic);
 
     return state;
 }
@@ -1040,8 +1053,7 @@ common_speculative * common_speculative_init(
                 break;
             }
             case COMMON_SPECULATIVE_TYPE_NGRAM_CACHE: {
-                auto state = create_state_ngram_cache(
-                        params.lookup_cache_static, params.lookup_cache_dynamic, config);
+                auto state = create_state_ngram_cache(config);
                 impls.push_back(std::make_unique<common_speculative_state_ngram_cache>(state));
                 break;
             }
